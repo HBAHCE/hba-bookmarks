@@ -268,47 +268,68 @@ async function loadLinks() {
 
 
 async function addLink() {
-    // 1. 获取输入框的值
-    const nameInput = document.getElementById('linkName'); // 确保你的HTML里id是 linkName
-    const urlInput = document.getElementById('linkUrl');   // 确保你的HTML里id是 linkUrl
+// 【修复版】添加链接函数
+async function addShiftLink() {
+    const nameInput = document.getElementById('nameInput'); // 对应你HTML里的 id="nameInput"
+    const urlInput = document.getElementById('urlInput');   // 对应你HTML里的 id="urlInput"
+    const addBtn = document.getElementById('addBtn');
 
-    const name = nameInput ? nameInput.value.trim() : '';
-    const url = urlInput ? urlInput.value.trim() : '';
+    const name = nameInput.value.trim();
+    let url = urlInput.value.trim();
 
-    // 【调试步骤 A】先检查有没有填内容
-    if (!name || !url) {
-        alert('❌ 错误：名字或网址不能为空！\n当前获取到的名字: ' + name + '\n当前获取到的网址: ' + url);
+    // 1. 校验网址
+    if (!url) {
+        alert('❌ 网址不能为空！');
         return;
+    }
+    // 自动补全 http
+    if (!url.startsWith('http')) {
+        url = 'https://' + url;
     }
 
     try {
-        console.log('正在尝试上传:', { name, url }); // 在控制台打印看看
+        // 2. 显示加载状态
+        addBtn.disabled = true;
+        addBtn.classList.add('loading');
+        addBtn.textContent = '添加中...';
 
-        // 2. 发起上传请求
-        const { data, error } = await supabase
-            .from('links')
-            .insert([
-                { name: name, url: url }
-            ]);
+        // 3. 发送请求 (这里直接用 fetch，绕过 supabase SDK 的潜在问题)
+        const response = await fetch(
+            `${SUPABASE_URL}/rest/v1/links`,
+            {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({
+                    name: name || url, // 如果没填名字，就用网址当名字
+                    url: url
+                })
+            }
+        );
 
-        // 【调试步骤 B】如果有错，直接弹窗显示数据库返回的错误
-        if (error) {
-            console.error('上传失败详情:', error);
-            alert('❌ 数据库拒绝写入！\n错误代码: ' + error.code + '\n错误信息: ' + error.message);
-            return;
+        // 4. 处理结果
+        if (response.ok) {
+            showSuccessMsg();
+            nameInput.value = '';
+            urlInput.value = '';
+            loadLinks(); // 刷新列表
+        } else {
+            const error = await response.json();
+            alert('❌ 添加失败: ' + response.status + '\n' + JSON.stringify(error));
         }
 
-        // 3. 成功后的处理
-        alert('✅ 添加成功！');
-        loadLinks(); // 重新加载列表
-        nameInput.value = ''; // 清空输入框
-        urlInput.value = '';
-
     } catch (err) {
-        console.error('代码运行出错:', err);
-        alert('❌ 代码运行出错: ' + err.message);
+        console.error('Error:', err);
+        alert('❌ 网络错误: ' + err.message);
+    } finally {
+        addBtn.disabled = false;
+        addBtn.classList.remove('loading');
+        addBtn.textContent = '添加';
     }
-}
+    }
     
     } finally {
         btn.disabled = false;
