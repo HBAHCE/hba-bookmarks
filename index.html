@@ -268,54 +268,49 @@ async function loadLinks() {
 
 async function addLink() {
     const urlEl = document.getElementById('urlInput');
-    const nameEl = document.getElementById('nameInput');
-    const btn = document.getElementById('addBtn');
-    
-    let url = urlEl.value.trim();
-    
-    if (!url) {
-        alert('请输入网址');
+async function addLink() {
+    // 1. 获取输入框的值
+    const nameInput = document.getElementById('linkName'); // 确保你的HTML里id是 linkName
+    const urlInput = document.getElementById('linkUrl');   // 确保你的HTML里id是 linkUrl
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const url = urlInput ? urlInput.value.trim() : '';
+
+    // 【调试步骤 A】先检查有没有填内容
+    if (!name || !url) {
+        alert('❌ 错误：名字或网址不能为空！\n当前获取到的名字: ' + name + '\n当前获取到的网址: ' + url);
         return;
     }
-    
-    if (!/^https?:\/\//i.test(url)) {
-        url = 'https://' + url;
-    }
-    
-    const name = nameEl.value.trim();
-    
-    btn.disabled = true;
-    btn.classList.add('loading');
-    
+
     try {
-        const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/links`,
-            {
-                method: 'POST',
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=representation'
-                },
-                body: JSON.stringify({
-                    name: name,
-                    url: url
-                })
-            }
-        );
-        
-        if (response.ok) {
-            urlEl.value = '';
-            nameEl.value = '';
-            urlEl.focus();
-            showSuccessMsg();
-            await loadLinks();
-        } else {
-            showErrorMsg();
+        console.log('正在尝试上传:', { name, url }); // 在控制台打印看看
+
+        // 2. 发起上传请求
+        const { data, error } = await supabase
+            .from('links')
+            .insert([
+                { name: name, url: url }
+            ]);
+
+        // 【调试步骤 B】如果有错，直接弹窗显示数据库返回的错误
+        if (error) {
+            console.error('上传失败详情:', error);
+            alert('❌ 数据库拒绝写入！\n错误代码: ' + error.code + '\n错误信息: ' + error.message);
+            return;
         }
+
+        // 3. 成功后的处理
+        alert('✅ 添加成功！');
+        loadLinks(); // 重新加载列表
+        nameInput.value = ''; // 清空输入框
+        urlInput.value = '';
+
     } catch (err) {
-        console.error('添加失败:', err);
-        showErrorMsg();
+        console.error('代码运行出错:', err);
+        alert('❌ 代码运行出错: ' + err.message);
+    }
+}
+    
     } finally {
         btn.disabled = false;
         btn.classList.remove('loading');
